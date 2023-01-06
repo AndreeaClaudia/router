@@ -1,0 +1,54 @@
+Popescu Andreea-Claudia, 324CC
+
+    Pentru tabela de rutare am declarat o structura in care o intrare are prefix,
+next_hop si mask de tipul uint32_t si interface de tip int.
+    Tabela arp are intrari cu un ip de tipul u32 si un vector cu adresa mac 
+de tipul uint8_t.
+    Pentru parsarea tabelei de rutare am implementat functia read_rtable care
+intoarce dimensiunea tabelei. Am citit din fisier folosind fscanf si transformand
+string-urile cu functia inet_addr. Am alocat dinamic tabela de rutare.
+    Am cautat cea mai buna intrare in tabela de rutare folosind formula din enunt
+si conditia ca masca sa fie maxima. Cautarea are complexitatea O(n). Imi va
+returna NULL daca nu va gasi o intrare.
+    Functia get_arp_entry imi va cauta intrarea din tabela arp care corespunde
+adresei ip data ca argument si NULL daca nu gaseste intrarea respectiva.
+    In main, inainte de while(1), voi aloca tabela de rutare cu memorie pentru 
+1000 de intrari si va fi realocata in functia read_rtable in functie de intrarile 
+citite. Tabelei arp ii voi aloca memorie pentru o singura intrare si voi realoca 
+de fiecare data cand adaug o noua intrare. Creez o coada pe care o voi folosi la 
+dirijare.
+    In while(1), dupa ce primesc pachetul voi extrage header-ul de ethernet si
+header-ul de ip. Daca tipul din ehter_type este ip inseamna ca am primit un pachet
+de tip ip. Verific daca este adresat routerului si voi extrage header-ul icmp.
+Daca este de tipul echo request voi trimite un icmp de tip reply si voi continua,
+aruncand pachetul.
+    Apoi voi incerca sa obtin cea mai buna intrare din tabela de rutare care
+corespunde ip-ului destinatie din header-ul de ip. Daca nu exista voi trimite
+un mesaj icmp sursei cu codul host unreacheable(3).
+    Apoi verific checksum-ul, daca e diferit de 0 voi arunca pachetul.
+    Verific TTL-ul sa fie > 1, daca nu este voi trimite un mesaj icmp de tip
+time-exceeded(cod 11) si arunc pachetul.
+    Apoi voi decrementa TTL-ul si voi updata checksum-ul.
+    Voi cauta in tabela arp adresa MAC corespunzatoare ip-ului destinatie din 
+header-ul ip. Daca nu o gasesc voi pune pachetul in coada si voi trimite o cerere
+de tip arp ca broadcast, adica la adresa MAC destinatie voi pune ff:ff:ff:ff:ff:ff.
+Adresa ip a destinatiei va fi adresa urmatorului dispozitiv de rutare(next_hop) 
+si interfata din intrarea cea mai semnificativa din tabela de rutare.
+    Daca avem adresa MAC a corespunzatoare o voi pune in headerul ethernet la 
+adresa MAC a destinatiei si adresa MAC a sursei o voi obtine folosind 
+get_interface_mac a interfetei din intrarea semnificativa a tabelei de rutare 
+si voi trimite pachetul pe acea interfata.
+    In cazul in care avem un pachet de tip arp, voi verifica initial daca este 
+unul de tip request adresat ruterului. In acest caz, voi crea un nou header 
+ethernet, de tip arp cu adresa MAC a interfetei pachetului. Voi trimite un arp 
+reply prin interfata din pachet(m.interface), spre adresa ip a sursei din 
+arp(arp->spa), iar la source ip address din functia send_arp voi pune adresa 
+destinatiei din arp(arp->tpa) deoarece il voi trimite inapoi.
+    Daca este un pachet arp de tip reply voi updata tabela arp si voi realoca 
+memorie daca este nevoie. Voi cauta in coada pachetele pe care le pot trimite 
+acum ca am adresa MAC. In cazul in care nu pot trimite acum pachetul, deoarece 
+nu sunt adresate adresei pe care tocmai am aflat-o il voi pune intr-o coada 
+auxiliara. Trimit toate pachetele din coada pe care le pot trimite acum catre
+interfata din best_route(cea mai semnificativa intrare din tabela de rutare). 
+La final, daca am pachete in coada auxiliara le voi pune la loc in coada cu 
+pachete de trimis. Apoi voi continua cu noua iteratie din while.
